@@ -163,8 +163,6 @@ bool Task::readCalibration(const std::string &f1)
                     std::istream_iterator<std::string>(),
                    std:: back_inserter(tokens));
         std::cout<<"line: "<<str<<std::endl;
-        for (auto it=tokens.begin(); it!=tokens.end(); ++it)
-            std::cout<<*it<<std::endl;
         this->K = cv::Mat_<double>::eye(3, 3);
         this->K.at<double>(0,0) = std::stod(tokens[0]);
         this->K.at<double>(1,1) = std::stod(tokens[1]);
