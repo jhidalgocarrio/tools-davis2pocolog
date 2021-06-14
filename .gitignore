@@ -4,5 +4,6 @@ templates/*
 .*.swp
 build/*
 
+compile_commands.json
 *autobuild-stamp
 
