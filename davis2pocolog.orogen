@@ -9,7 +9,7 @@ import_types_from "davis2pocologTypes.hpp"
 # library. In this case, the library must be first used (the name is the
 # library's pkg-config name) and then the header can be used. Following Rock
 # conventions, a common use-case would be:
-using_library "frame_helper" # Image Frames
+using_library "frame_helper" # Image Frames. it depends in OpenCV
 
 # If this project uses data types that are defined in other oroGen projects,
 # these projects should be imported there as well.
@@ -29,6 +29,7 @@ task_context "Task" do
     #****Task Properties ****
     #*************************
     property 'dataset_path', "std::string"
+    property 'events_array_size', "int"
 
     #******************************
     #******* Output Ports *********
