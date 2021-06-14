@@ -50,6 +50,7 @@ tasks/Task.cpp, and will be put in the davis2pocolog namespace.
         bool processEvents(const std::string &filename, const int array_size);
         bool processIMU(const std::string &filename);
         bool writeImages();
+        bool writeDepthmaps();
 
 
     public:

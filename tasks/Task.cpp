@@ -11,6 +11,12 @@
 #include <opencv2/calib3d.hpp>
 #include <boost/filesystem.hpp>
 
+/** OpenEXR **/
+#include <ImfInputFile.h>
+#include <ImfChannelList.h>
+#include <ImfFrameBuffer.h>
+#include <ImfRgbaFile.h>
+
 /** Frame helper **/
 #include <frame_helper/FrameHelper.h>
 
@@ -20,8 +26,47 @@
 
 #include "Task.hpp"
 
+using namespace Imf;
+using namespace Imath;
 using namespace davis2pocolog;
 namespace fs = boost::filesystem;
+
+bool ReadEXR(const char *name, float *&rgba, int &xRes, int &yRes, bool &hasAlpha)
+{
+    /** Example from here:
+     * https://gist.github.com/bgotink/635bca8e2a3d47bf6a5f
+     * **/
+    try {
+    InputFile file(name);
+    Box2i dw = file.header().dataWindow();
+    xRes = dw.max.x - dw.min.x + 1;
+    yRes = dw.max.y - dw.min.y + 1;
+
+    half *hrgba = new half[1 * xRes * yRes];
+
+    // for now...
+    hasAlpha = true;
+    int nChannels = 1;
+
+    hrgba -= 1 * (dw.min.x + dw.min.y * xRes);
+    FrameBuffer frameBuffer;
+    frameBuffer.insert("Z", Slice(HALF, (char *)hrgba,
+				  1*sizeof(half), xRes * 1 * sizeof(half), 1, 1, 0.0));
+    file.setFrameBuffer(frameBuffer);
+    file.readPixels(dw.min.y, dw.max.y);
+
+    hrgba += 1 * (dw.min.x + dw.min.y * xRes);
+    rgba = new float[nChannels * xRes * yRes];
+    for (int i = 0; i < nChannels * xRes * yRes; ++i)
+	rgba[i] = hrgba[i];
+    delete[] hrgba;
+    } catch (const std::exception &e) {
+        fprintf(stderr, "Unable to read image file \"%s\": %s", name, e.what());
+        return NULL;
+    }
+
+    return rgba;
+}
 
 Task::Task(std::string const& name)
     : TaskBase(name)
@@ -65,7 +110,7 @@ bool Task::startHook()
 
     /** Read calibration **/
     status = this->readCalibration("calib.txt");
-    std::cout<<"K:"<<this->K.at<float>(0,0)<<std::endl;
+    std::cout<<"K:\n"<<this->K<<std::endl;    
 
     /** Read the images file (timestamp and filename) **/
     status &= this->readImagesFile("images.txt");
@@ -82,9 +127,8 @@ bool Task::startHook()
     /** Write the imu **/
     status &= this->processIMU("imu.txt");
 
-
     /** Write the depthmaps **/
-
+    status &= this->writeDepthmaps();
 
     return status;
 }
@@ -121,11 +165,11 @@ bool Task::readCalibration(const std::string &f1)
         std::cout<<"line: "<<str<<std::endl;
         for (auto it=tokens.begin(); it!=tokens.end(); ++it)
             std::cout<<*it<<std::endl;
-        this->K = cv::Mat_<float>::eye(3, 3);
-        this->K.at<float>(0,0) = std::stof(tokens[0]);
-        this->K.at<float>(1,1) = std::stof(tokens[1]);
-        this->K.at<float>(0,2) = std::stof(tokens[2]);
-        this->K.at<float>(1,2) = std::stof(tokens[3]);
+        this->K = cv::Mat_<double>::eye(3, 3);
+        this->K.at<double>(0,0) = std::stod(tokens[0]);
+        this->K.at<double>(1,1) = std::stod(tokens[1]);
+        this->K.at<double>(0,2) = std::stod(tokens[2]);
+        this->K.at<double>(1,2) = std::stod(tokens[3]);
         file.close();
         return true;
     }
@@ -191,13 +235,14 @@ bool Task::processEvents(const std::string &filename, const int array_size)
 {
     fs::path events_fname = fs::path(this->root_folder)/ fs::path(filename);
 
-    int i = 0;
-    std::string str; 
     std::ifstream file(events_fname.string());
     if (!file.is_open())
-        return false;
+        return true;
     
+    int i = 0;
+    std::string str; 
     ::base::samples::EventArray events_msg;
+    std::cout<<"Writing Events...";
     while (std::getline(file, str))
     {
         /** Split the line **/
@@ -217,17 +262,29 @@ bool Task::processEvents(const std::string &filename, const int array_size)
             events_msg.time = ev.ts;
         }
  
-        std::cout<<"E: "<<ev.ts.toString()<<" "<<ev.x<<" "<<ev.y<<" "<<ev.polarity<<std::endl;
+        //std::cout<<"E: "<<ev.ts.toString()<<" "<<ev.x<<" "<<ev.y<<" "<<ev.polarity<<std::endl;
         events_msg.events.push_back(ev);
         if (i%array_size == 0)
         {
-            //std::cout<<".";
+            //std::cout<<"events size: "<<events_msg.events.size()<<std::endl;
             events_msg.height = this->img_height;
             events_msg.width = this->img_width;
             this->_events.write(events_msg);
             events_msg.events.clear();
         }
+        ++i;
     }
+
+    /** Write the last event array **/
+    if (events_msg.events.size() > 0)
+    {
+        std::cout<<"last events size: "<<events_msg.events.size();
+        events_msg.height = this->img_height;
+        events_msg.width = this->img_width;
+        this->_events.write(events_msg);
+    }
+    
+    std::cout<<"[DONE]"<<std::endl;
 
     file.close();
 
@@ -239,7 +296,7 @@ bool Task::processIMU(const std::string &filename)
     fs::path imu_fname = fs::path(this->root_folder)/ fs::path(filename);
     std::ifstream file(imu_fname.string());
     if (!file.is_open())
-        return false;
+        return true;//some datasets do not have imu data
  
     std::string str; 
     std::cout<<"Writing IMU... ";
@@ -253,7 +310,7 @@ bool Task::processIMU(const std::string &filename)
                    std:: back_inserter(tokens));
         /** Measurement **/
         ::base::samples::IMUSensors imusamples;
-        imusamples.time = ::base::Time::fromMicroseconds(std::stod(tokens[0]));
+        imusamples.time = ::base::Time::fromSeconds(std::stod(tokens[0]));
         imusamples.acc << std::stod(tokens[1]), std::stod(tokens[2]), std::stod(tokens[3]); //[m/s^2]
         imusamples.gyro << std::stod(tokens[4]), std::stod(tokens[5]), std::stod(tokens[6]); //[rad/s]
         this->_imu.write(imusamples);
@@ -291,12 +348,63 @@ bool Task::writeImages()
         frame_helper::FrameHelper::copyMatToFrame(img, *img_msg_ptr);
 
         /** Write into the port **/
-        img_msg_ptr->time = ::base::Time::fromMicroseconds(*it_ts);
+        img_msg_ptr->time = ::base::Time::fromSeconds(*it_ts);
         img_msg_ptr->received_time = img_msg_ptr->time;
         this->img_msg.reset(img_msg_ptr);
         _frame.write(this->img_msg);
 
         ++it_img;
+        ++it_ts;
+    }
+    std::cout<<"[DONE]"<<std::endl;
+    return true;
+}
+
+bool Task::writeDepthmaps()
+{
+    auto it_depth =this->depth_fname.begin();
+    auto it_ts =this->depth_ts.begin();
+
+    // load EXR image
+    std::cout<<"Writing depth... ";
+    while(it_depth != this->depth_fname.end() && it_ts != this->depth_ts.end())
+    {
+        fs::path depthmap_name = fs::path(this->root_folder)/ fs::path(*it_depth);
+        //std::cout<<depthmap_name.string()<<std::endl;
+
+        float *image;
+        int resolution[2];
+        bool has_alpha;
+        if (!ReadEXR(depthmap_name.string().c_str(), image, resolution[0], resolution[1], has_alpha))
+        {
+	        printf("couldn't read image %s\n", depthmap_name.string().c_str());
+            return false;
+        }
+        else
+        {
+            ::base::samples::DistanceImage *depth_msg_ptr = this->depth_msg.write_access();
+            depth_msg_ptr->data.clear();
+            depth_msg_ptr->height = resolution[1];
+            depth_msg_ptr->width = resolution[0];
+            depth_msg_ptr->setIntrinsic(this->K.at<double>(0,0),
+                            this->K.at<double>(1,1),
+                            this->K.at<double>(0,2),
+                            this->K.at<double>(1,2));
+
+
+            for (int i=0; i<resolution[0]*resolution[1]; ++i)
+            {
+                //std::cout<<"depth[i]"<< image[i] <<std::endl;
+                depth_msg_ptr->data.push_back(image[i]);
+            }
+            /** Write into the port **/
+            depth_msg_ptr->time = ::base::Time::fromSeconds(*it_ts);
+            this->depth_msg.reset(depth_msg_ptr);
+            _depthmap.write(this->depth_msg);
+
+            free(image);
+        }
+        ++it_depth;
         ++it_ts;
     }
     std::cout<<"[DONE]"<<std::endl;
