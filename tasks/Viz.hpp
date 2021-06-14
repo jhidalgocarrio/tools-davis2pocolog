@@ -26,7 +26,16 @@ namespace davis2pocolog{
 	friend class VizBase;
     protected:
 
+        /** variables **/
+        cv::Mat frame;
 
+        /** Input ports **/
+        RTT::extras::ReadOnlyPointer<base::samples::frame::Frame> frame_ptr;
+
+        /** Output ports **/
+        RTT::extras::ReadOnlyPointer<base::samples::frame::Frame> img_msg;
+        
+        cv::Mat createFrame (cv::Mat &frame, std::vector<cv::Point2f> &coord, std::vector<uint8_t> &p);
 
     public:
         /** TaskContext constructor for Viz
