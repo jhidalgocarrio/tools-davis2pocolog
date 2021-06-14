@@ -2,6 +2,7 @@
 
 
 #include <boost/filesystem.hpp>
+#include <sstream>
 
 #include "Task.hpp"
 
@@ -38,7 +39,20 @@ bool Task::startHook()
         return false;
     bool status = true;
 
-    status = this->readImagesFile();
+    /** Read the images file (timestamp and filename) **/
+    status = this->readImagesFile("images.txt");
+
+    /** Read the depth file (timestamp and filename) **/
+    status = this->readDepthFile("depthmaps.txt");
+
+    /** Write the events **/
+
+    /** Write the imu **/
+
+    /** Write the images **/
+
+    /** Write the depthmaps **/
+
 
     return status;
 }
@@ -59,10 +73,10 @@ void Task::cleanupHook()
     TaskBase::cleanupHook();
 }
 
-bool Task::readImagesFile()
+bool Task::readImagesFile(const std::string &filename)
 {
     /** Read images timestamps **/
-    fs::path img_ts_fname = fs::path(this->root_folder)/ fs::path("images.txt");
+    fs::path img_ts_fname = fs::path(this->root_folder)/ fs::path(filename);
     std::ifstream infile;
     infile.open(img_ts_fname.string());
     if (!infile)
@@ -71,12 +85,42 @@ bool Task::readImagesFile()
         return false; // terminate with error
     }
 
-    double ts;
-    std::string fname;
-    while (infile >> ts)
+    std::string sentence;
+    int i = 0;
+    while (infile >> sentence)
     {
-        this->image_ts.push_back(ts);
-        this->image_fname.push_back(fname);
+        if((i%2) == 0)
+            this->image_ts.push_back(std::stod(sentence));
+        else
+            this->image_fname.push_back(sentence);
+        i++;
+    }
+    infile.close();
+
+    return true;
+}
+
+bool Task::readDepthFile(const std::string &filename)
+{
+    /** Read images timestamps **/
+    fs::path img_ts_fname = fs::path(this->root_folder)/ fs::path(filename);
+    std::ifstream infile;
+    infile.open(img_ts_fname.string());
+    if (!infile)
+    {
+        std::cout << "Unable to open file:"<<img_ts_fname.string()<<std::endl;
+        return false; // terminate with error
+    }
+
+    std::string sentence;
+    int i = 0;
+    while (infile >> sentence)
+    {
+        if((i%2) == 0)
+            this->depth_ts.push_back(std::stod(sentence));
+        else
+            this->depth_fname.push_back(sentence);
+        i++;
     }
     infile.close();
 

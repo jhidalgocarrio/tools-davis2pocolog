@@ -32,10 +32,11 @@ tasks/Task.cpp, and will be put in the davis2pocolog namespace.
         std::string root_folder;
 
 
-        std::vector<double> image_ts;
-        std::vector<std::string> image_fname;
+        std::vector<double> image_ts, depth_ts;
+        std::vector<std::string> image_fname, depth_fname;
 
-        bool readImagesFile();
+        bool readImagesFile(const std::string &filename);
+        bool readDepthFile(const std::string &filename);
 
 
     public:
