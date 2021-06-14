@@ -3,6 +3,8 @@
 #ifndef DAVIS2POCOLOG_TASK_TASK_HPP
 #define DAVIS2POCOLOG_TASK_TASK_HPP
 
+#include <opencv2/core/mat.hpp>
+
 #include "davis2pocolog/TaskBase.hpp"
 
 namespace davis2pocolog{
@@ -31,12 +33,23 @@ tasks/Task.cpp, and will be put in the davis2pocolog namespace.
         /** Property **/
         std::string root_folder;
 
-
+        /** Variables **/
+        cv::Mat K;
+        int img_height, img_width;
         std::vector<double> image_ts, depth_ts;
         std::vector<std::string> image_fname, depth_fname;
 
+        /** Output ports **/
+        RTT::extras::ReadOnlyPointer<base::samples::frame::Frame> img_msg;
+        RTT::extras::ReadOnlyPointer<base::samples::DistanceImage> depth_msg;
+
+        /** Methods **/
+        bool readCalibration(const std::string &f1);
         bool readImagesFile(const std::string &filename);
         bool readDepthFile(const std::string &filename);
+        bool processEvents(const std::string &filename, const int array_size);
+        bool processIMU(const std::string &filename);
+        bool writeImages();
 
 
     public:
