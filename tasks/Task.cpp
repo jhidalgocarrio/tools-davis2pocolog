@@ -251,7 +251,7 @@ bool Task::processEvents(const std::string &filename, const int array_size)
                    std:: back_inserter(tokens));
 
         ::base::samples::Event ev(
-            std::stoi(tokens[1]), std::stoi(tokens[2]),
+            (uint16_t)std::stoi(tokens[1]), (uint16_t)std::stoi(tokens[2]),
             ::base::Time::fromSeconds(std::stod(tokens[0])),
             (uint8_t)std::stoi(tokens[3]));
 
