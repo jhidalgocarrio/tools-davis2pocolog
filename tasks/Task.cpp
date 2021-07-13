@@ -127,6 +127,9 @@ bool Task::startHook()
     /** Write the imu **/
     status &= this->processIMU("imu.txt");
 
+    /** Write the imu **/
+    status &= this->processGroundTruth("groundtruth.txt");
+
     /** Write the depthmaps **/
     status &= this->writeDepthmaps();
 
@@ -312,6 +315,36 @@ bool Task::processIMU(const std::string &filename)
         imusamples.acc << std::stod(tokens[1]), std::stod(tokens[2]), std::stod(tokens[3]); //[m/s^2]
         imusamples.gyro << std::stod(tokens[4]), std::stod(tokens[5]), std::stod(tokens[6]); //[rad/s]
         this->_imu.write(imusamples);
+    }
+    file.close();
+    std::cout<<"[DONE]"<<std::endl;
+    return true;
+}
+
+bool Task::processGroundTruth(const std::string &filename)
+{
+    fs::path poses_fname = fs::path(this->root_folder)/ fs::path(filename);
+    std::ifstream file(poses_fname.string());
+    if (!file.is_open())
+        return true;//some datasets do not have ground truth pose data
+ 
+    std::string str; 
+    std::cout<<"Writing Poses... ";
+    while (std::getline(file, str))
+    {
+        /** Split the line **/
+        std::istringstream iss(str);
+        std::vector<std::string> tokens;
+        std::copy(std::istream_iterator<std::string>(iss),
+                    std::istream_iterator<std::string>(),
+                   std:: back_inserter(tokens));
+        /** Measurement **/
+        ::base::samples::RigidBodyState rbs;
+        rbs.time = ::base::Time::fromSeconds(std::stod(tokens[0]));
+        rbs.sourceFrame = "cam"; rbs.targetFrame = "world";
+        rbs.position << std::stod(tokens[1]), std::stod(tokens[2]), std::stod(tokens[3]); //[m/s^2]
+        rbs.orientation = Eigen::Quaterniond(std::stod(tokens[7]), std::stod(tokens[4]),  std::stod(tokens[5]),  std::stod(tokens[6])); // Eigen expect w, x, y, z
+        this->_poses.write(rbs);
     }
     file.close();
     std::cout<<"[DONE]"<<std::endl;
