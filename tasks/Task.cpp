@@ -270,7 +270,9 @@ bool Task::processEvents(const std::string &filename, const int array_size)
             //std::cout<<"events size: "<<events_msg.events.size()<<std::endl;
             events_msg.height = this->img_height;
             events_msg.width = this->img_width;
-            this->_events.write(events_msg);
+            RTT::WriteStatus status = RTT::WriteStatus::WriteFailure;
+            while (status != RTT::WriteStatus::WriteSuccess)
+                status = this->_events.write(events_msg);
             events_msg.events.clear();
         }
         ++i;
@@ -282,7 +284,9 @@ bool Task::processEvents(const std::string &filename, const int array_size)
         std::cout<<"last events size: "<<events_msg.events.size();
         events_msg.height = this->img_height;
         events_msg.width = this->img_width;
-        this->_events.write(events_msg);
+        RTT::WriteStatus status = RTT::WriteStatus::WriteFailure;
+        while (status != RTT::WriteStatus::WriteSuccess)
+            status = this->_events.write(events_msg);
     }
     
     std::cout<<"[DONE]"<<std::endl;
@@ -314,7 +318,9 @@ bool Task::processIMU(const std::string &filename)
         imusamples.time = ::base::Time::fromSeconds(std::stod(tokens[0]));
         imusamples.acc << std::stod(tokens[1]), std::stod(tokens[2]), std::stod(tokens[3]); //[m/s^2]
         imusamples.gyro << std::stod(tokens[4]), std::stod(tokens[5]), std::stod(tokens[6]); //[rad/s]
-        this->_imu.write(imusamples);
+        RTT::WriteStatus status = RTT::WriteStatus::WriteFailure;
+        while (status != RTT::WriteStatus::WriteSuccess)
+            status = this->_imu.write(imusamples);
     }
     file.close();
     std::cout<<"[DONE]"<<std::endl;
@@ -344,7 +350,10 @@ bool Task::processGroundTruth(const std::string &filename)
         rbs.sourceFrame = "cam"; rbs.targetFrame = "world";
         rbs.position << std::stod(tokens[1]), std::stod(tokens[2]), std::stod(tokens[3]); //[m/s^2]
         rbs.orientation = Eigen::Quaterniond(std::stod(tokens[7]), std::stod(tokens[4]),  std::stod(tokens[5]),  std::stod(tokens[6])); // Eigen expect w, x, y, z
-        this->_poses.write(rbs);
+        RTT::WriteStatus status = RTT::WriteStatus::WriteFailure;
+        while (status != RTT::WriteStatus::WriteSuccess)
+            status = this->_poses.write(rbs);
+
     }
     file.close();
     std::cout<<"[DONE]"<<std::endl;
@@ -382,7 +391,9 @@ bool Task::writeImages()
         img_msg_ptr->time = ::base::Time::fromSeconds(*it_ts);
         img_msg_ptr->received_time = img_msg_ptr->time;
         this->img_msg.reset(img_msg_ptr);
-        _frame.write(this->img_msg);
+        RTT::WriteStatus status = RTT::WriteStatus::WriteFailure;
+        while (status != RTT::WriteStatus::WriteSuccess)
+            status = _frame.write(this->img_msg);
 
         ++it_img;
         ++it_ts;
@@ -431,7 +442,9 @@ bool Task::writeDepthmaps()
             /** Write into the port **/
             depth_msg_ptr->time = ::base::Time::fromSeconds(*it_ts);
             this->depth_msg.reset(depth_msg_ptr);
-            _depthmap.write(this->depth_msg);
+            RTT::WriteStatus status = RTT::WriteStatus::WriteFailure;
+            while (status != RTT::WriteStatus::WriteSuccess)
+                status = _depthmap.write(this->depth_msg);
 
             free(image);
         }
