@@ -4,6 +4,8 @@
 #define DAVIS2POCOLOG_TASK_TASK_HPP
 
 #include <opencv2/core/mat.hpp>
+#include <base/Time.hpp>
+#include <base/samples/DistanceImage.hpp>
 
 #include "davis2pocolog/TaskBase.hpp"
 
@@ -41,6 +43,7 @@ tasks/Task.cpp, and will be put in the davis2pocolog namespace.
 
         /** Output ports **/
         RTT::extras::ReadOnlyPointer<base::samples::frame::Frame> img_msg;
+        RTT::extras::ReadOnlyPointer<base::samples::frame::Frame> depth_img_msg;
         RTT::extras::ReadOnlyPointer<base::samples::DistanceImage> depth_msg;
 
         /** Methods **/
@@ -52,6 +55,7 @@ tasks/Task.cpp, and will be put in the davis2pocolog namespace.
         bool processGroundTruth(const std::string &filename);
         bool writeImages();
         bool writeDepthmaps();
+        bool writePredictedDepthmaps();
 
 
     public:

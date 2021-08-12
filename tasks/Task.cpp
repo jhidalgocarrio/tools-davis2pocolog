@@ -76,6 +76,11 @@ Task::Task(std::string const& name)
     this->img_msg.reset(img);
     img = nullptr;
 
+    /** Set the depth_img member **/
+    ::base::samples::frame::Frame *depth_img = new ::base::samples::frame::Frame();
+    this->depth_img_msg.reset(depth_img);
+    depth_img = nullptr;
+
     /** Set the depth map **/
     ::base::samples::DistanceImage *depth = new ::base::samples::DistanceImage();
     this->depth_msg.reset(depth);
@@ -448,6 +453,42 @@ bool Task::writeDepthmaps()
 
             free(image);
         }
+        ++it_depth;
+        ++it_ts;
+    }
+    std::cout<<"[DONE]"<<std::endl;
+    return true;
+}
+
+bool Task::writePredictedDepthmaps()
+{
+    auto it_depth =this->depth_fname.begin();
+    auto it_ts =this->depth_ts.begin();
+
+    // load PFM image
+    /** Write the images **/
+    std::cout<<"Writing depth... ";
+    while(it_depth != this->depth_fname.end() && it_ts != this->depth_ts.end())
+    {
+        /** The path to the depthmap file **/
+        fs::path depthmap_name = fs::path(this->root_folder)/ fs::path(*it_depth);
+
+        /** Read the image file **/
+        cv::Mat depth = cv::imread(depthmap_name.string(), cv::IMREAD_UNCHANGED);
+
+        /** Convert from cv mat to frame **/
+        ::base::samples::frame::Frame *depth_img_msg_ptr = this->depth_img_msg.write_access();
+        depth_img_msg_ptr->image.clear();
+        frame_helper::FrameHelper::copyMatToFrame(depth, *depth_img_msg_ptr);
+
+        /** Write into the port **/
+        depth_img_msg_ptr->time = ::base::Time::fromSeconds(*it_ts);
+        depth_img_msg_ptr->received_time = depth_img_msg_ptr->time;
+        this->depth_img_msg.reset(depth_img_msg_ptr);
+        RTT::WriteStatus status = RTT::WriteStatus::WriteFailure;
+        while (status != RTT::WriteStatus::WriteSuccess)
+            //status = _depthmap.write(this->depth_img_msg);
+
         ++it_depth;
         ++it_ts;
     }

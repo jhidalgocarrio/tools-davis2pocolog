@@ -49,6 +49,7 @@ task_context "Task" do
         doc 'RGB Image frame at the event camera'
 
     output_port('depthmap', ro_ptr('base::samples::DistanceImage')).
+    #output_port('depthmap', ro_ptr('base::samples::frame::Frame')).
         doc 'Depth map in the event camera'
 
     fd_driven
