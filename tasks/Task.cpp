@@ -132,6 +132,9 @@ bool Task::startHook()
     /** Write the imu **/
     status &= this->processIMU("imu.txt");
 
+    /** Write the twist **/
+    status &= this->processTwist("twist.txt");
+
     /** Write the imu **/
     status &= this->processGroundTruth("groundtruth.txt");
 
@@ -332,6 +335,37 @@ bool Task::processIMU(const std::string &filename)
     return true;
 }
 
+bool Task::processTwist(const std::string &filename)
+{
+    fs::path twist_fname = fs::path(this->root_folder)/ fs::path(filename);
+    std::ifstream file(twist_fname.string());
+    if (!file.is_open())
+        return true;//some datasets do not have twist data
+ 
+    std::string str; 
+    std::cout<<"Writing Twist... ";
+    while (std::getline(file, str))
+    {
+        /** Split the line **/
+        std::istringstream iss(str);
+        std::vector<std::string> tokens;
+        std::copy(std::istream_iterator<std::string>(iss),
+                    std::istream_iterator<std::string>(),
+                   std:: back_inserter(tokens));
+        /** Measurement **/
+        ::base::samples::Twist twistsamples;
+        twistsamples.time = ::base::Time::fromSeconds(std::stod(tokens[0]));
+        twistsamples.frame_id = "camera"; // twist samplas are in camera frame
+        twistsamples.linear << std::stod(tokens[1]), std::stod(tokens[2]), std::stod(tokens[3]); //[m/s] velocity
+        twistsamples.angular << std::stod(tokens[4]), std::stod(tokens[5]), std::stod(tokens[6]); //[rad/s]
+        RTT::WriteStatus status = RTT::WriteStatus::WriteFailure;
+        while (status != RTT::WriteStatus::WriteSuccess)
+            status = this->_twist.write(twistsamples);
+    }
+    file.close();
+    std::cout<<"[DONE]"<<std::endl;
+    return true;
+}
 bool Task::processGroundTruth(const std::string &filename)
 {
     fs::path poses_fname = fs::path(this->root_folder)/ fs::path(filename);

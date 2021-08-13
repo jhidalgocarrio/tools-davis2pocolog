@@ -42,6 +42,9 @@ task_context "Task" do
     output_port('imu', '/base/samples/IMUSensors').
         doc 'provides timestamped inertial samples containing the calibrated sensor readings.'
 
+    output_port('twist', '/base/samples/Twist').
+        doc 'camera twist linear and angular velocities.'
+
     output_port('events', 'base::samples::EventArray').
         doc 'array of events'
 
