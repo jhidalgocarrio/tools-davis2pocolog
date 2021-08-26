@@ -222,7 +222,7 @@ bool Task::readDepthFile(const std::string &filename)
     if (!infile)
     {
         std::cout << "Unable to open file:"<<img_ts_fname.string()<<std::endl;
-        return false; // terminate with error
+        return true; // terminate with error
     }
 
     std::string sentence;
