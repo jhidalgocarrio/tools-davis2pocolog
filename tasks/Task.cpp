@@ -261,29 +261,36 @@ bool Task::processEvents(const std::string &filename, const int array_size)
                     std::istream_iterator<std::string>(),
                    std:: back_inserter(tokens));
 
-        ::base::samples::Event ev(
-            (uint16_t)std::stoi(tokens[1]), (uint16_t)std::stoi(tokens[2]),
-            ::base::Time::fromSeconds(std::stod(tokens[0])),
-            (uint8_t)std::stoi(tokens[3]));
+        if (tokens[0].compare("#") != 0)
+        {
+            ::base::samples::Event ev(
+                (uint16_t)std::stoi(tokens[1]), (uint16_t)std::stoi(tokens[2]),
+                ::base::Time::fromSeconds(std::stod(tokens[0])),
+                (uint8_t)std::stoi(tokens[3]));
 
-        if (events_msg.events.size() == 0)
-        {
-            events_msg.time = ev.ts;
+            if (events_msg.events.size() == 0)
+            {
+                events_msg.time = ev.ts;
+            }
+
+            //std::cout<<"E: "<<ev.ts.toString()<<" "<<ev.x<<" "<<ev.y<<" "<<ev.polarity<<std::endl;
+            events_msg.events.push_back(ev);
+            if (i%array_size == 0)
+            {
+                //std::cout<<"events size: "<<events_msg.events.size()<<std::endl;
+                events_msg.height = this->img_height;
+                events_msg.width = this->img_width;
+                RTT::WriteStatus status = RTT::WriteStatus::WriteFailure;
+                while (status != RTT::WriteStatus::WriteSuccess)
+                    status = this->_events.write(events_msg);
+                events_msg.events.clear();
+            }
+            ++i;
         }
- 
-        //std::cout<<"E: "<<ev.ts.toString()<<" "<<ev.x<<" "<<ev.y<<" "<<ev.polarity<<std::endl;
-        events_msg.events.push_back(ev);
-        if (i%array_size == 0)
+        else
         {
-            //std::cout<<"events size: "<<events_msg.events.size()<<std::endl;
-            events_msg.height = this->img_height;
-            events_msg.width = this->img_width;
-            RTT::WriteStatus status = RTT::WriteStatus::WriteFailure;
-            while (status != RTT::WriteStatus::WriteSuccess)
-                status = this->_events.write(events_msg);
-            events_msg.events.clear();
+            std::cout<<"Spiking comment "<<str<<std::endl;
         }
-        ++i;
     }
 
     /** Write the last event array **/
@@ -321,14 +328,21 @@ bool Task::processIMU(const std::string &filename)
         std::copy(std::istream_iterator<std::string>(iss),
                     std::istream_iterator<std::string>(),
                    std:: back_inserter(tokens));
-        /** Measurement **/
-        ::base::samples::IMUSensors imusamples;
-        imusamples.time = ::base::Time::fromSeconds(std::stod(tokens[0]));
-        imusamples.acc << std::stod(tokens[1]), std::stod(tokens[2]), std::stod(tokens[3]); //[m/s^2]
-        imusamples.gyro << std::stod(tokens[4]), std::stod(tokens[5]), std::stod(tokens[6]); //[rad/s]
-        RTT::WriteStatus status = RTT::WriteStatus::WriteFailure;
-        while (status != RTT::WriteStatus::WriteSuccess)
-            status = this->_imu.write(imusamples);
+        if (tokens[0].compare("#") != 0)
+        {
+            /** Measurement **/
+            ::base::samples::IMUSensors imusamples;
+            imusamples.time = ::base::Time::fromSeconds(std::stod(tokens[0]));
+            imusamples.acc << std::stod(tokens[1]), std::stod(tokens[2]), std::stod(tokens[3]); //[m/s^2]
+            imusamples.gyro << std::stod(tokens[4]), std::stod(tokens[5]), std::stod(tokens[6]); //[rad/s]
+            RTT::WriteStatus status = RTT::WriteStatus::WriteFailure;
+            while (status != RTT::WriteStatus::WriteSuccess)
+                status = this->_imu.write(imusamples);
+        }
+        else
+        {
+            std::cout<<"Spiking comment "<<str<<std::endl;
+        }
     }
     file.close();
     std::cout<<"[DONE]"<<std::endl;
@@ -383,15 +397,23 @@ bool Task::processGroundTruth(const std::string &filename)
         std::copy(std::istream_iterator<std::string>(iss),
                     std::istream_iterator<std::string>(),
                    std:: back_inserter(tokens));
-        /** Measurement **/
-        ::base::samples::RigidBodyState rbs;
-        rbs.time = ::base::Time::fromSeconds(std::stod(tokens[0]));
-        rbs.sourceFrame = "cam"; rbs.targetFrame = "world";
-        rbs.position << std::stod(tokens[1]), std::stod(tokens[2]), std::stod(tokens[3]); //[m/s^2]
-        rbs.orientation = Eigen::Quaterniond(std::stod(tokens[7]), std::stod(tokens[4]),  std::stod(tokens[5]),  std::stod(tokens[6])); // Eigen expect w, x, y, z
-        RTT::WriteStatus status = RTT::WriteStatus::WriteFailure;
-        while (status != RTT::WriteStatus::WriteSuccess)
-            status = this->_poses.write(rbs);
+
+        if (tokens[0].compare("#") != 0)
+        {
+            /** Measurement **/
+            ::base::samples::RigidBodyState rbs;
+            rbs.time = ::base::Time::fromSeconds(std::stod(tokens[0]));
+            rbs.sourceFrame = "cam"; rbs.targetFrame = "world";
+            rbs.position << std::stod(tokens[1]), std::stod(tokens[2]), std::stod(tokens[3]); //[m/s^2]
+            rbs.orientation = Eigen::Quaterniond(std::stod(tokens[7]), std::stod(tokens[4]),  std::stod(tokens[5]),  std::stod(tokens[6])); // Eigen expect w, x, y, z
+            RTT::WriteStatus status = RTT::WriteStatus::WriteFailure;
+            while (status != RTT::WriteStatus::WriteSuccess)
+                status = this->_poses.write(rbs);
+        }
+        else
+        {
+            std::cout<<"Spiking comment "<<str<<std::endl;
+        }
 
     }
     file.close();
