@@ -139,7 +139,10 @@ bool Task::startHook()
     status &= this->processGroundTruth("groundtruth.txt");
 
     /** Write the depthmaps **/
-    status &= this->writeDepthmaps();
+    if (this->use_exr_depthmaps)
+        status &= this->writeDepthmaps();
+    else
+        status &= this->writePredictedDepthmaps();
 
     return status;
 }
@@ -237,6 +240,15 @@ bool Task::readDepthFile(const std::string &filename)
     }
     infile.close();
 
+    /** Check depthmap files extension **/
+    fs::path depthmap_name = fs::path(this->root_folder)/ fs::path(this->depth_fname[0]);
+    if(depthmap_name.extension().compare(".exr") == 0)
+    {
+        this->use_exr_depthmaps = true;
+        std::cout<<"Depthmaps in EXR format"<<std::endl;
+    }
+    else
+        this->use_exr_depthmaps = false;
     return true;
 }
         
@@ -543,7 +555,7 @@ bool Task::writePredictedDepthmaps()
         this->depth_img_msg.reset(depth_img_msg_ptr);
         RTT::WriteStatus status = RTT::WriteStatus::WriteFailure;
         while (status != RTT::WriteStatus::WriteSuccess)
-            //status = _depthmap.write(this->depth_img_msg);
+            //status = _depthmap.write(this->depth_img_msg); //needs to be comented because the output port type changes
 
         ++it_depth;
         ++it_ts;

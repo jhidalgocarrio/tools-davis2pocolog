@@ -34,6 +34,7 @@ tasks/Task.cpp, and will be put in the davis2pocolog namespace.
     protected:
         /** Property **/
         std::string root_folder;
+        bool use_exr_depthmaps;
 
         /** Variables **/
         cv::Mat K;
